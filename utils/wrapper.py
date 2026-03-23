@@ -413,19 +413,29 @@ class StreamDiffusionWrapper:
             The loaded model.
         """
 
-        try:  # Load from local directory
-            pipe: StableDiffusionPipeline = StableDiffusionPipeline.from_pretrained(
-                model_id_or_path,
-            ).to(device=self.device, dtype=self.dtype)
+        if str(model_id_or_path).endswith(".safetensors") or str(model_id_or_path).endswith(".ckpt"):
+            try:
+                pipe: StableDiffusionPipeline = StableDiffusionPipeline.from_single_file(
+                    model_id_or_path,
+                ).to(device=self.device, dtype=self.dtype)
+            except Exception:
+                traceback.print_exc()
+                print("Single file model load has failed.")
+                exit()
+        else:
+            try:  # Load from local directory or Hugging Face repo
+                pipe: StableDiffusionPipeline = StableDiffusionPipeline.from_pretrained(
+                    model_id_or_path,
+                ).to(device=self.device, dtype=self.dtype)
 
-        except ValueError:  # Load from huggingface
-            pipe: StableDiffusionPipeline = StableDiffusionPipeline.from_single_file(
-                model_id_or_path,
-            ).to(device=self.device, dtype=self.dtype)
-        except Exception:  # No model found
-            traceback.print_exc()
-            print("Model load has failed. Doesn't exist.")
-            exit()
+            except ValueError:  # Fallback
+                pipe: StableDiffusionPipeline = StableDiffusionPipeline.from_single_file(
+                    model_id_or_path,
+                ).to(device=self.device, dtype=self.dtype)
+            except Exception:  # No model found
+                traceback.print_exc()
+                print("Model load has failed. Doesn't exist.")
+                exit()
 
         stream = StreamDiffusion(
             pipe=pipe,
