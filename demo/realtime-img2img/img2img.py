@@ -64,12 +64,6 @@ class Pipeline:
             field="textarea",
             id="negative_prompt",
         )
-        denoise_strength: str = Field(
-            "15, 25, 35, 45",
-            title="Denoise Strength (t_index_list, e.g., '15, 25, 35, 45' for 4 steps)",
-            field="textarea",
-            id="denoise_strength",
-        )
         width: int = Field(
             512, min=2, max=15, title="Width", disabled=True, hide=True, id="width"
         )
@@ -116,7 +110,7 @@ class Pipeline:
 
         self.last_prompt = default_prompt
         self.last_negative_prompt = default_negative_prompt
-        self.last_denoise_strength = "15, 25, 35, 45"
+        self.last_denoise_strength = t_index_list
         
         self.stream.prepare(
             prompt=self.last_prompt,
@@ -137,20 +131,6 @@ class Pipeline:
         self.init_pipeline(model_id, lora_dict, t_index_list)
 
     def predict(self, params: "Pipeline.InputParams") -> Image.Image:
-        # Check if denoise_strength changed.
-        if params.denoise_strength != getattr(self, "last_denoise_strength", "15, 25, 35, 45"):
-            try:
-                new_t_index_list = [int(x.strip()) for x in params.denoise_strength.split(",")]
-                self.reload_pipeline(
-                    getattr(self, "last_base_model", base_model),
-                    getattr(self, "last_lora_dict", None),
-                    new_t_index_list
-                )
-                self.last_denoise_strength = params.denoise_strength
-            except Exception as e:
-                print(f"Invalid denoise_strength format: {e}")
-                self.last_denoise_strength = params.denoise_strength # Prevent infinite reload attempts
-                
         # Check if prompt or negative_prompt changed.
         if params.prompt != self.last_prompt or params.negative_prompt != self.last_negative_prompt:
             self.stream.prepare(

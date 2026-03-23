@@ -157,6 +157,7 @@ class App:
         class LoadModelRequest(BaseModel):
             base_model: str
             lora_dict: Optional[Dict[str, float]] = None
+            t_index_list: Optional[list] = None
 
         class DownloadModelRequest(BaseModel):
             url: str
@@ -196,8 +197,13 @@ class App:
                         lora_path = os.path.join("loras", k) if (k.endswith(".safetensors") or k.endswith(".ckpt")) else k
                         parsed_lora_dict[lora_path] = v
 
-                # Use current denoise strength
-                current_t_index_list = [int(x.strip()) for x in getattr(self.pipeline, "last_denoise_strength", "15, 25, 35, 45").split(",")]
+                if req.t_index_list and len(req.t_index_list) > 0:
+                    current_t_index_list = req.t_index_list
+                else:
+                    # Use current denoise strength
+                    current_t_index_list = getattr(self.pipeline, "last_denoise_strength", [15, 25, 35, 45])
+                    if isinstance(current_t_index_list, str):
+                        current_t_index_list = [int(x.strip()) for x in current_t_index_list.split(",")]
 
                 # Hard Reload using A1111/ComfyUI technique
                 self.pipeline.reload_pipeline(

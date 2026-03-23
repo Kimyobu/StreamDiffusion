@@ -9,6 +9,7 @@
   
   let selectedBaseModel: string = 'stabilityai/sd-turbo';
   let activeLoras: { name: string; weight: number }[] = [];
+  let denoiseStrength: string = '15, 25, 35, 45';
   
   let downloadUrl: string = '';
   let downloadName: string = '';
@@ -90,13 +91,16 @@
       lora_dict[l.name] = l.weight;
     });
 
+    const t_index_list = denoiseStrength.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+
     try {
       const res = await fetch('/api/models/load', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           base_model: selectedBaseModel,
-          lora_dict: Object.keys(lora_dict).length > 0 ? lora_dict : null
+          lora_dict: Object.keys(lora_dict).length > 0 ? lora_dict : null,
+          t_index_list: t_index_list.length > 0 ? t_index_list : null
         })
       });
       const data = await res.json();
@@ -126,6 +130,13 @@
         <option value={model}>{model}</option>
       {/each}
     </select>
+  </div>
+
+  <!-- Denoise Strength Selection -->
+  <div class="flex flex-col gap-1">
+    <label for="denoiseStrength" class="font-semibold">Denoise Strength (Steps array)</label>
+    <input id="denoiseStrength" type="text" bind:value={denoiseStrength} placeholder="e.g., 15, 25, 35, 45" class="rounded border p-2 dark:bg-gray-700" />
+    <p class="text-xs text-gray-500 mb-1">Lower values = more change. Example: 35, 45 for slight change.</p>
   </div>
 
   <!-- LoRA Section -->
