@@ -479,6 +479,16 @@ class StreamDiffusionWrapper:
                 stream.pipe.enable_xformers_memory_efficient_attention()
             if acceleration == "tensorrt":
                 from polygraphy import cuda
+                
+                # Monkey-patch ONNX to fix compatibility issue with newer onnx versions and onnx_graphsurgeon
+                import onnx
+                import onnx.helper
+                if not hasattr(onnx.helper, "float32_to_bfloat16"):
+                    import struct
+                    def dummy_bfloat16(x):
+                        return struct.unpack('>H', struct.pack('>f', x)[0:2])[0]
+                    onnx.helper.float32_to_bfloat16 = dummy_bfloat16
+
                 from streamdiffusion.acceleration.tensorrt import (
                     TorchVAEEncoder,
                     compile_unet,
