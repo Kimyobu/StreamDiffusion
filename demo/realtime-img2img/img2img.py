@@ -18,10 +18,12 @@ from pydantic import BaseModel, Field
 from PIL import Image
 import math
 
+# สามารถเปลี่ยนโมเดลตรงนี้ได้ เช่น "KBlueLeaf/Kohaku-V2.1" หรือ "runwayml/stable-diffusion-v1-5"
 base_model = "stabilityai/sd-turbo"
 taesd_model = "madebyollin/taesd"
 
-default_prompt = "Portrait of The Joker halloween costume, face painting, with , glare pose, detailed, intricate, full of colour, cinematic lighting, trending on artstation, 8k, hyperrealistic, focused, extreme details, unreal engine 5 cinematic, masterpiece"
+# แก้ Prompt ให้ตรงกับเสื้อผ้า/หน้าผม/เพศที่ต้องการเปลี่ยน เช่น "1girl, casual outfit, short hair"
+default_prompt = "1girl, beautiful face, masterpiece, highres, casual outfit, short hair, realistic photo"
 default_negative_prompt = "black and white, blurry, low resolution, pixelated,  pixel art, low quality, low fidelity"
 
 page_content = """<h1 class="text-3xl font-bold">StreamDiffusion</h1>
@@ -76,10 +78,14 @@ class Pipeline:
             use_tiny_vae=args.taesd,
             device=device,
             dtype=torch_dtype,
-            t_index_list=[35, 45],
+            # Denoise Strength: หากต้องการเปลี่ยนรูปภาพใหม่เกือบทั้งหมด (เช่น ทรงผม, หน้า, ชุด, เพศ)
+            # ให้เริ่มที่ index ต่ำๆ เช่น [15, 25, 35, 45] จะทำให้เพิ่ม noise เข้าไปเยอะ รูปจะเปลี่ยนไปเป็นคนละคน
+            # ถ้า [35, 45] (ค่าเริ่มต้น) จะหมายถึงแก้รูปแค่นิดเดียว
+            t_index_list=[15, 25, 35, 45],
             frame_buffer_size=1,
             width=params.width,
             height=params.height,
+            # หากเปลี่ยนโมเดลเป็นรุ่นที่ไม่ใช่ turbo (เช่น SD1.5 ทั่วไป) ต้องปรับ use_lcm_lora=True 
             use_lcm_lora=False,
             output_type="pil",
             warmup=10,
