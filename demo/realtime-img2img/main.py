@@ -12,9 +12,12 @@ import time
 from types import SimpleNamespace
 import asyncio
 import os
-import time
 import mimetypes
 import torch
+import glob
+import urllib.request
+from pydantic import BaseModel
+from typing import Optional, Dict
 
 from config import config, Args
 from util import pil_to_frame, bytes_to_pil
@@ -149,6 +152,83 @@ class App:
                     "page_content": page_content if info.page_content else "",
                 }
             )
+
+        # Model Manager API Schemas
+        class LoadModelRequest(BaseModel):
+            base_model: str
+            lora_dict: Optional[Dict[str, float]] = None
+
+        class DownloadModelRequest(BaseModel):
+            url: str
+            model_name: str
+            is_lora: bool = False
+
+        # Create directories for models if they don't exist
+        os.makedirs("models", exist_ok=True)
+        os.makedirs("loras", exist_ok=True)
+
+        @self.app.get("/api/models")
+        async def get_models():
+            base_models = glob.glob("models/*.safetensors") + glob.glob("models/*.ckpt")
+            base_models = [os.path.basename(m) for m in base_models]
+            # Add default models
+            base_models.extend(["stabilityai/sd-turbo", "runwayml/stable-diffusion-v1-5", "KBlueLeaf/Kohaku-V2.1"])
+            
+            loras = glob.glob("loras/*.safetensors") + glob.glob("loras/*.ckpt")
+            loras = [os.path.basename(l) for l in loras]
+            
+            return JSONResponse({
+                "base_models": list(set(base_models)),
+                "loras": loras
+            })
+
+        @self.app.post("/api/models/load")
+        async def load_model(req: LoadModelRequest):
+            try:
+                base_model_path = req.base_model
+                if base_model_path.endswith(".safetensors") or base_model_path.endswith(".ckpt"):
+                    base_model_path = os.path.join("models", base_model_path)
+                
+                parsed_lora_dict = None
+                if req.lora_dict and len(req.lora_dict) > 0:
+                    parsed_lora_dict = {}
+                    for k, v in req.lora_dict.items():
+                        lora_path = os.path.join("loras", k) if (k.endswith(".safetensors") or k.endswith(".ckpt")) else k
+                        parsed_lora_dict[lora_path] = v
+
+                # Use current denoise strength
+                current_t_index_list = [int(x.strip()) for x in getattr(self.pipeline, "last_denoise_strength", "15, 25, 35, 45").split(",")]
+
+                # Hard Reload using A1111/ComfyUI technique
+                self.pipeline.reload_pipeline(
+                    model_id=base_model_path,
+                    lora_dict=parsed_lora_dict,
+                    t_index_list=current_t_index_list
+                )
+                return JSONResponse({"status": "success", "message": "Model and LoRAs loaded successfully"})
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                raise HTTPException(status_code=500, detail=str(e))
+
+        @self.app.post("/api/models/download")
+        async def download_model(req: DownloadModelRequest):
+            try:
+                dir_path = "loras" if req.is_lora else "models"
+                file_ext = ".safetensors" if ".safetensors" in req.url else ".ckpt"
+                filename = req.model_name
+                if not filename.endswith(".safetensors") and not filename.endswith(".ckpt"):
+                    filename += file_ext
+                save_path = os.path.join(dir_path, filename)
+                
+                # Simple synchronous download for now (will block thread, but it's a local demo tool)
+                urllib.request.urlretrieve(req.url, save_path)
+                
+                return JSONResponse({"status": "success", "message": f"Downloaded {filename} to {dir_path}"})
+            except Exception as e:
+                import traceback
+                traceback.print_exc()
+                raise HTTPException(status_code=500, detail=str(e))
 
         if not os.path.exists("public"):
             os.makedirs("public")

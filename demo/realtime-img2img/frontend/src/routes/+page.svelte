@@ -8,6 +8,7 @@
   import PipelineOptions from '$lib/components/PipelineOptions.svelte';
   import Spinner from '$lib/icons/spinner.svelte';
   import Warning from '$lib/components/Warning.svelte';
+  import ModelManager from '$lib/components/ModelManager.svelte';
   import { lcmLiveStatus, lcmLiveActions, LCMLiveStatus } from '$lib/lcmLive';
   import { mediaStreamActions, onFrameChangeStore } from '$lib/mediaStream';
   import { getPipelineValues, deboucedPipelineValues } from '$lib/store';
@@ -86,6 +87,12 @@
       toggleQueueChecker(true);
     }
   }
+
+  function handleStopStream() {
+    if (isLCMRunning) {
+      toggleLcmLive();
+    }
+  }
 </script>
 
 <svelte:head>
@@ -126,14 +133,23 @@
         <ImagePlayer />
       </div>
       <div class="sm:col-span-2">
-        <Button on:click={toggleLcmLive} {disabled} classList={'text-lg my-1 p-2'}>
+        <Button on:click={toggleLcmLive} {disabled} classList={'text-lg my-1 p-2 w-full bg-blue-600 text-white font-bold hover:bg-blue-700'}>
           {#if isLCMRunning}
             Stop
           {:else}
             Start
           {/if}
         </Button>
+      </div>
+      
+      <!-- Option Controls -->
+      <div class="sm:col-span-1">
         <PipelineOptions {pipelineParams}></PipelineOptions>
+      </div>
+
+      <!-- Model Manager Sidebar -->
+      <div class="sm:col-span-1">
+        <ModelManager on:stopStream={handleStopStream} />
       </div>
     </article>
   {:else}
