@@ -110,7 +110,7 @@ class Pipeline:
             mode="img2img",
             use_denoising_batch=True,
             cfg_type="none",
-            use_safety_checker=self.args.safety_checker,
+            use_safety_checker=None,
             engine_dir=self.args.engine_dir,
         )
 
